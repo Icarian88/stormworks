@@ -1,0 +1,179 @@
+function decimal(value) 
+	w=2
+    local p = math.ceil(math.log(value,10)+.01)
+    local prec = value <= 1 and w - 1 or p >= w and 0 or w - p
+    return string.format('%.' .. prec .. 'f', value)
+end
+function map(value,in_min,in_max,out_min,out_max)
+	return (value - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
+end
+function clamp(value,min,max)
+	value = (value<min) and min or value
+	value = (value>max) and max or value
+	return value
+end
+function pRect(x, y, rectX, rectY, rectW, rectH)
+	return x > rectX and y > rectY and x < rectX+rectW and y < rectY+rectH
+end
+
+i = 0
+fuelOld = 2800
+fuelR=0
+fTog = false
+function onTick()
+	speed = input.getNumber(10)*3.6
+	fuel = input.getNumber(11)
+	alt =input.getNumber(12)
+	altSet =input.getNumber(13)
+	pitch = input.getNumber(14)
+	roll = input.getNumber(15)
+	compass = (-input.getNumber(16)-1)*360%360
+	f = input.getNumber(17)
+	
+	inX = input.getNumber(3)
+	inY = input.getNumber(4)
+	press = input.getBool(1)
+	bFuel = press and pRect(inX, inY, 60, 88, 96, 96)
+	if bFuel then
+		fTog = not fTog
+	end
+	if i<2 then
+		i = i+1
+	else
+		new_speed = speed
+		i = 0
+	end
+end
+k=0
+function onDraw()
+	w = screen.getWidth()
+	h = screen.getHeight()
+		
+	screen.setColor(0, 255, 0,130)
+	
+	screen.drawLine(52,44,56,44)
+	screen.drawLine(40,44,44,44)
+	screen.drawTriangle(46,44,50,44,48,46)
+	screen.drawLine(26,pitch*650+44+roll*180,70,pitch*650+44-roll*180) --horizon
+	
+	screen.drawLine(70,48,67,48)
+	screen.drawLine(25,48,28,48)
+	
+	screen.setColor(0, 255, 0,150)
+	f = f*0.8
+	screen.drawLine(25,-f*70+48-2,27,-f*70+48-2)
+	screen.drawLine(25,-f*70+48+2,27,-f*70+48+2)
+	screen.drawLine(27,-f*70+48+2,31,-f*70+48-2)
+	screen.drawLine(27,-f*70+48-2,31,-f*70+48+2)
+	screen.drawLine(70,-f*70+48+2,68,-f*70+48+2)
+	screen.drawLine(70,-f*70+48-2,68,-f*70+48-2)
+	screen.drawLine(68,-f*70+48-2,64,-f*70+48+2)
+	screen.drawLine(68,-f*70+48+2,64,-f*70+48-2)
+	
+	--ALT
+	if alt+48>20 and alt+48<80 then
+	screen.drawText(8,alt+48-1, 0)
+	screen.drawLine(23,alt+48,24,alt+48)
+	end
+	screen.drawLine(24,18,24,80)--MAIN LINE
+	i = 1 
+	screen.drawTriangle(21,alt-altSet+48,20,alt-altSet+48+1,20,alt-altSet+48-1)
+	while i<21 do
+		y = alt+48-20*i
+		if y >20 and y<80 then
+			screen.drawLine(23,y,24,y)
+			if y>55 or y<42 then
+				screen.drawText(3,y-2,20*i)
+			end
+		end
+		i=i+1
+	end
+		j = 1
+	while j<21 do
+		y = alt+48-20*j+10
+		if y >20 and y<80 then
+			screen.drawLine(23,y,24,y)
+		end
+		j=j+1
+	end
+	screen.drawLine(22,48,24,48)
+	temp = alt>=10 and 16 or 17
+	screen.drawRect(1,44,temp,8)
+	screen.drawText(3,46,decimal(alt))
+	
+	screen.drawLine(24,86,5,86)
+	screen.drawLine(24,16,5,16)
+	screen.drawText(6,10,"Alt")
+	--ALT END
+	
+	--SPEED
+	screen.drawLine(71,18,71,80)--MAIN LINE
+	i = 1 
+	while i<21 do
+		y = speed+48-20*i
+		if y >20 and y<80 then
+			screen.drawLine(72,y,73,y)
+			if y>55 or y<42 then
+				screen.drawText(79,y-2,20*i)
+			end
+		end
+		i=i+1
+	end
+	j = 1
+	while j<21 do
+		y = speed+48-20*j+10
+		if y >20 and y<80 then
+			screen.drawLine(72,y,73,y)
+		end
+		j=j+1
+	end
+	screen.drawLine(72,48,74,48)
+	screen.drawRect(77,44,17,8)
+	if speed>0 then
+		screen.drawText(79,46,decimal(speed))
+	else
+		screen.drawText(75,46,decimal(speed))
+	end
+	
+	screen.drawLine(71,86,89,86)
+	screen.drawLine(71,16,89,16)
+	screen.drawText(73,10,"Km/h")
+	--SPEED END
+	
+	--COMPASS
+	screen.drawLine(25,4,25,17)
+	screen.drawLine(70,4,70,17)
+	compass = map(compass,0,360,80,-80)
+	if 48+compass>28 and 48+compass<64 then
+	screen.drawText(48+compass,8,"N")
+	end
+	if 48+compass+40>28 and 48+compass+40<64 then
+	screen.drawText(48+compass+40,8,"W")
+	end
+	if 48+compass+80>28 and 48+compass+80<64 then
+	screen.drawText(48+compass+80,8,"S")
+	end
+	if 48+compass-80>28 and 48+compass-80<64 then
+	screen.drawText(48+compass-80,8,"S")
+	end
+	if 48+compass-40>28 and 48+compass-40<64 then
+	screen.drawText(48+compass-40,8,"E")
+	end
+	--COMPASS END
+	
+	
+	if k<60 then
+		k = k+1
+	else
+		fuelR=fuel/(fuelOld-fuel)/60
+		fuelOld = fuel
+		k = 0
+	end
+	
+	if fTog then
+		screen.drawText(64,88,string.format("F" .. "%.1f" .. "m",clamp(fuelR,0,200)))
+	else
+		screen.drawText(64,88,string.format("F" .. "%.0f",fuel))
+	end
+			
+end
