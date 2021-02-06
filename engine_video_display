@@ -1,0 +1,123 @@
+function isPointInRectangle(x, y, rectX, rectY, rectW, rectH)
+	return x > rectX and y > rectY and x < rectX+rectW and y < rectY+rectH
+end
+function clamp(value,min,max)
+	value = (value<min) and min or value
+	value = (value>max) and max or value
+	return value
+end
+page = -1
+zoom = 0
+engine = false
+function onTick()
+	--value = input.getNumber(1)
+	inputX = input.getNumber(3)
+	inputY = input.getNumber(4)
+	press = input.getBool(1)
+	rps1 = tonumber(string.format("%.1f",input.getNumber(20)))
+	rps2= tonumber(string.format("%.1f",input.getNumber(21)))
+	temp1 = tonumber(string.format("%.1f",input.getNumber(22)))
+	temp2 = tonumber(string.format("%.1f",input.getNumber(23)))
+	electric_gen = tonumber(string.format("%.1f",input.getNumber(24)))*2
+	battery = tonumber(string.format("%.2f",input.getNumber(25)))
+	
+	if press and isPointInRectangle(inputX, inputY, 16, 0, 31, 8) then
+		engine = not engine
+	end
+	output.setBool(3,engine)
+	pageDown = press and isPointInRectangle(inputX, inputY, 0, 0, 8, 8)
+	pageUp = press and isPointInRectangle(inputX, inputY, 9, 0, 8, 8)	
+	
+	if pageUp then
+		page = page+1
+	end
+	if page>2 then
+		page = -1
+	end
+	if pageDown then
+		page = page-1
+	end
+	if page<-1 then
+		page =2
+	end
+	
+	zoomOut = press and isPointInRectangle(inputX, inputY, 47, 0, 8, 8)
+	ZoomIn = press and isPointInRectangle(inputX, inputY, 56, 0, 8, 8)
+	if ZoomIn then
+		zoom= zoom + 0.05
+	end
+	if zoomOut then
+		zoom = zoom - 0.05
+	end
+	zoom = clamp(zoom,0,1)
+	
+	if page==oldPage then
+	else
+		if page == 1 then
+			zoom = 0
+		end
+		if page == 0 or page == 2 then
+			zoom = 0.4
+		end
+	end
+	oldPage = page
+	output.setNumber(1,page)
+	output.setNumber(2,zoom)
+end
+function onDraw()
+	w = screen.getWidth()
+	h = screen.getHeight()
+
+	--engine box
+	if  engine then
+	screen.setColor(255, 0, 0, 180)
+	screen.drawRectF(16,0,31,8)
+	end
+	screen.setColor(255, 255, 255, 220)
+	screen.drawRect(16, 0, 31, 8)
+	screen.drawText(18,2,"On/Off")
+	
+	if pageUp then
+		screen.drawRectF(8, 0, 8, 8)
+		
+	else
+		screen.drawRect(8, 0, 8, 8)
+		screen.drawTriangleF(14, 5, 11, 2, 11, 8)
+	end
+	if pageDown then
+		screen.drawRectF(0, 0, 8, 8)
+	else
+		screen.drawRect(0, 0, 8, 8)
+		screen.drawTriangleF(3, 5, 6, 2, 6, 8)
+	end
+	
+	if zoomIn then
+		screen.drawRectF(55, 0, 8, 8)
+	else
+		screen.drawRect(55, 0, 8, 8)
+		screen.drawText(58,2,"+")
+	end	
+	if zoomOut then
+		screen.drawRectF(46, 0, 8, 8)
+	else
+		screen.drawRect(47, 0, 8, 8)
+		screen.drawText(50,2,"-")
+	end
+	
+	if page==-1 then
+		screen.setColor(50, 255, 50, 180)
+		screen.drawText(1,10,"Eng")					
+		screen.drawText(19, 10, "rps")					
+		screen.drawText(39, 10, "Temp")
+		screen.drawText(6, 18, 1)
+		screen.drawText(6, 34, 2)
+		screen.drawText(16, 18, rps1)
+		screen.drawText(16, 34, rps2)
+		screen.drawText(40, 18, temp1)
+		screen.drawText(40, 34, temp2)
+		screen.drawText(1,50,"Bat")
+		screen.drawText(18,50,battery)
+		screen.drawText(41,50,electric_gen)
+		
+	end
+end
