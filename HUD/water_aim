@@ -1,0 +1,56 @@
+function map(value,in_min,in_max,out_min,out_max)
+	return (value - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
+end
+function clamp(value,min,max)
+	value = (value<min) and min or value
+	value = (value>max) and max or value
+	return value
+end
+function inRect(x, y, rectX, rectY, rectW, rectH)
+	return x > rectX and y > rectY and x < rectX+rectW and y < rectY+rectH
+end
+aim = false
+aimX = 0
+aimY = 0
+function onTick()
+	inx = input.getNumber(3)
+	iny = input.getNumber(4)
+	press = input.getBool(1)
+	hover = input.getBool(20)
+	
+	if press and inRect(inx,iny,44,88,8,8) then
+		aim = not aim
+	end
+	if inRect(inx,iny,44,88,8,8) then
+		inx = 48
+		iny = 48
+	end
+	if aim then
+		aimY = map(iny,0,96,-.3,.1)
+		aimX = map(inx,0,96,-0.36,0.36)
+	end
+
+	
+	output.setNumber(1,aimY)--P
+	output.setNumber(2,aimX-.04)--R
+	output.setNumber(3,-aimX-.04)--L
+	output.setBool(4,aim)
+end
+
+
+function onDraw()
+	
+	if aim then
+	screen.setColor(0, 50, 255,100)
+	screen.drawRectF(44,86,10,10)
+	screen.setColor(0, 50, 255,180)
+	screen.drawRect(inx-4,iny-4,9,9)
+	end
+	screen.setColor(0, 50, 255,150)
+	screen.drawRect(44,86,9,9)
+	screen.drawText(47,88,"W")
+	screen.setColor(0, 255, 0,150)
+	if hover then
+		screen.drawText(4,88,"Hover")
+	end
+end
