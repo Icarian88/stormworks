@@ -1,0 +1,129 @@
+function isPointInRectangle(x, y, rectX, rectY, rectW, rectH)
+	return x > rectX and y > rectY and x < rectX+rectW and y < rectY+rectH
+end
+function resetMap()
+	mapX = gpsX
+	mapY = gpsY
+	zoom = 2
+end
+function clamp(value,min,max)
+	value = (value<min) and min or value
+	value = (value>max) and max or value
+	return value
+end
+
+
+
+local zoom = 2
+targetDistance = 0
+strength = 0
+size = 1
+tX={}
+tY={}
+a={}
+
+function onTick()
+	press = input.getBool(1)
+	inputX = input.getNumber(3)
+	inputY = input.getNumber(4)
+
+	gpsX = input.getNumber(20)
+	gpsY = input.getNumber(21)
+	compass = ((input.getNumber(25)+0.5)*360)*math.pi/180
+	degree = ((-input.getNumber(22)+1.5)*360)*math.pi/180+compass
+	
+	targetFound = input.getBool(10)
+	if targetFound then
+		targetDistance = input.getNumber(23)
+	else
+		targetDistance = 0
+	end
+	if strength then
+		strength = input.getNumber(24)
+	else
+		strength = 0
+	end
+	
+	mapX = gpsX
+	mapY = gpsY
+	
+	zoomOut = press and isPointInRectangle(inputX, inputY, 47, 0, 9, 9)
+	zoomIn = press and isPointInRectangle(inputX, inputY, 56, 0, 9, 9)
+	if zoomIn then
+		zoom= zoom - 0.1
+	end
+	if zoomOut then
+		zoom = zoom + 0.1
+	end
+	zoom = clamp(zoom,0.1,50)
+	--TARGET ARRAY STUFF
+	if targetFound and targetDistance>15 and targetDistance*strength>50 and size<50 then
+		size = size+1
+		tempX = gpsX+targetDistance*math.cos(degree+math.pi/2)
+		tempY = gpsY+targetDistance*math.sin(degree+math.pi/2)
+		table.insert(tX,tempX)
+		table.insert(tY,tempY)
+		table.insert(a,200)
+	end
+	i = 1
+	while i < size do
+	a[i]= a[i] - 4
+		if a[i]<20 then
+			table.remove(tX,1)
+			table.remove(tY,1)
+			table.remove(a,1)
+			size = size-1
+		end
+	i=i+1
+	end
+end
+
+function onDraw()
+	w = screen.getWidth()
+	h = screen.getHeight()
+	
+	screen.drawMap(mapX, mapY, zoom)
+	--map==gps due to no offset. player is center of map
+	playerX, playerY = map.mapToScreen(mapX, mapY, zoom, w, h, gpsX, gpsY)
+	screen.drawCircle(playerX,playerY,1)
+	
+	sweepX, sweepY = map.mapToScreen(mapX, mapY, zoom, w, h,gpsX+math.cos(degree+(math.pi/2))*5000,gpsY+math.sin(degree+(math.pi/2))*5000)
+	
+	sweepTrailX, sweepTrailY = map.mapToScreen(mapX, mapY, zoom, w, h,gpsX+math.cos(degree+(math.pi/2)+0.3)*5000,gpsY+math.sin(degree+(math.pi/2)+0.3)*5000)
+	
+	screen.setColor(0, 255, 0, 60)
+	screen.drawLine(playerX,playerY,sweepX,sweepY)
+	screen.setColor(0, 255, 0, 5)
+	screen.drawTriangleF(playerX,playerY,sweepX,sweepY,sweepTrailX,sweepTrailY)
+	
+	if size>0 then
+		i = 1 
+		while i<size do
+		screen.setColor(255, 0, 0, a[i])
+		x,y=map.mapToScreen(mapX, mapY, zoom, w, h,tX[i],tY[i])
+		screen.drawCircle(x,y,2)
+		i=i+1
+		end
+	end
+	screen.setColor(255, 255, 255, 200)
+	
+	screen.drawText(2,58,"x")
+	screen.drawText(7,58,math.floor(gpsX))
+	screen.drawText(34,58,"y")
+	screen.drawText(39,58,math.floor(gpsY))
+	
+
+	
+	if zoomIn then
+		screen.drawRectF(55, 0, 9, 9)
+	else
+		screen.drawRect(55, 0, 8, 8)
+		screen.drawText(57,2,"+")
+	end	
+	if zoomOut then
+		screen.drawRectF(46, 0, 9, 9)
+	else
+		screen.drawRect(46, 0, 8, 8)
+		screen.drawText(48,2,"-")
+	end
+end
