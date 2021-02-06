@@ -1,0 +1,142 @@
+function map(value,in_min,in_max,out_min,out_max)
+	return (value - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
+end
+function clamp(value,min,max)
+	value = (value<min) and min or value
+	value = (value>max) and max or value
+	return value
+end
+
+function pid(p,i,d)
+    return{p=p,i=i,d=d,error=0,der=0,integral=0,run=function(self,setpoint,process_variable,on,pass)
+			local error,der
+			local integral = 0
+			
+			if on then
+				error = setpoint-process_variable
+				der = error-self.error
+				if math.abs(error)>0.5 and math.abs(der)<0.00001 then
+					integral = integral*0.9	
+				else
+					integral = self.integral+error
+				end
+				self.error = error
+				self.integral = integral
+				return error*self.p + integral*self.i +der*self.d
+			else	
+				self.error = 0
+				self.integral = 0
+				return pass
+			end
+		end
+	}
+end
+
+
+pid_alt = pid(0.3,0.001,20)
+pid_roll = pid(.5,0.0001,20)
+pid_pitch = pid(2,0.0001,40)
+pid_yaw = pid(.15,0,4)
+pid_pitch_hover = pid(0.011,0.0000001,.5)
+pid_roll_hover = pid(0.005,0,.02)
+
+set_heading = 90
+way_num = 0
+wayX = {}
+wayY = {}
+
+function onTick()
+	alt_in = input.getNumber(1) --process variable
+	alt_set = input.getNumber(2)
+	yaw_in = input.getNumber(3)
+	forward_in = input.getNumber(4)
+	roll_in = input.getNumber(5)
+	pitch_sensor = input.getNumber(6)
+	roll_sensor = input.getNumber(7) --positive is right
+	compass_sensor = (-input.getNumber(8)-1)*360%360
+	forward_speed = input.getNumber(14)
+	sideway_speed = input.getNumber(15)
+	auto_hover = input.getBool(20)
+	
+
+	--START OF AUTO GPS
+	gpsX = input.getNumber(9)
+	gpsY = input.getNumber(10)
+	wayX_in = input.getNumber(11)
+	wayY_in = input.getNumber(12)
+	way_enter = input.getNumber(13)
+	
+	if way_enter>0 then
+		way_num=way_num+1
+		table.insert(wayX,wayX_in)
+		table.insert(wayY,wayY_in)
+	end
+	pitch_add = 0
+	if way_num>0  then
+		path_dist = math.sqrt((wayX[1]-gpsX)*(wayX[1]-gpsX)+(wayY[1]-gpsY)*(wayY[1]-gpsY))
+		path_angle = math.atan(gpsY-wayY[1],wayX[1]-gpsX)*(180/math.pi)+90
+		set_heading = path_angle
+		pitch_add = clamp(map(path_dist,30,500,0.01,.5),0.01,0.5)
+
+		if path_dist<30  then
+			table.remove(wayX,1)
+			table.remove(wayY,1)
+			way_num=way_num-1
+			pitch_add = 0
+		end
+		if auto_hover then
+			while way_num>0 do
+			table.remove(wayX,1)
+			table.remove(wayY,1)
+			way_num=way_num-1
+			end
+		end
+		
+	end
+	--END OF GPS
+	
+	--YAW
+	if forward_speed>=0 then
+		yaw_mult = clamp(map(forward_speed,15,35,0.6,0.08),0.08,0.6)
+	else
+		yaw_mult=0.6
+	end
+	test =yaw_mult
+	set_heading = set_heading + yaw_in*yaw_mult
+	heading_diff = compass_sensor - set_heading
+	if heading_diff > 320 then
+		heading_diff = heading_diff - 360
+	end
+	if heading_diff < -320 then
+		heading_diff = heading_diff + 360 
+	end
+	yaw_out = pid_yaw:run(0,heading_diff,true,0)
+	--END OF YAW
+	
+	--PITCH
+	forward_out = clamp(pid_pitch_hover:run(0,forward_speed,auto_hover,forward_in),-.3,.5)
+	pitch_out =-pid_pitch:run(0,pitch_sensor,true,0)
+	--END OF PITCH
+	
+	--ROLL
+	roll_sensor = roll_sensor + clamp(pid_roll_hover:run(0,sideway_speed,true,0),-.75,.75) - roll_in*0.075
+	roll_out =pid_roll:run(0,roll_sensor,true,0)
+	--END OF ROLL
+	
+	--POWER
+	power = pid_alt:run(alt_set,alt_in,true,0)
+	power = clamp(power,0,.98)
+	
+	--OUTPUTS
+	output.setNumber(1,power-pitch_out-roll_out) --FR
+	output.setNumber(2,power-pitch_out+roll_out) --FL
+	output.setNumber(3,power+pitch_out-roll_out) --RR
+	output.setNumber(4,power+pitch_out+roll_out) --RL
+	output.setNumber(5,test) --test output
+	output.setNumber(6,-yaw_out) --FR RR
+	output.setNumber(7,yaw_out) --FL RL
+	output.setNumber(8,pitch_out*10-roll_out*6)
+	output.setNumber(9,pitch_out*10+roll_out*6)
+	output.setNumber(10,forward_out)
+	
+end
