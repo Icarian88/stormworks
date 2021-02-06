@@ -1,0 +1,22 @@
+local error_prior = 0
+local integral_prior = 0
+local kp = 0.2
+local ki = 0.0001
+local kd = 0.01
+local bias = 0
+
+function onTick()
+	setRps = input.getNumber(1)
+	getRps = input.getNumber(2)
+	
+	error = setRps - getRps
+	integral = integral_prior+error
+	derivative = error-error_prior	
+	
+	value_out = kp*error+ki*integral+kd*derivative+bias
+	
+	error_prior = error
+	integral_prior = integral
+	
+	output.setNumber(1,value_out)
+end
